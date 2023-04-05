@@ -44,14 +44,16 @@ public class MainWindow extends JFrame
 	private BufferedImage filtered_zones;
 	private int width, height;
 	private DrawPanel drawPanel;
+	private File ignore_areas_file_path;
 	
 	
 	public MainWindow(String samples_dir_path, int width, int height) 
 	{
 		Dimension screen_size = Toolkit.getDefaultToolkit().getScreenSize();
 		File sample_dir = new File(samples_dir_path);
-//		setSize(screen_size.width, screen_size.height);
-		setSize(800, 600);
+		setSize(screen_size.width, screen_size.height);
+		ignore_areas_file_path = new File(sample_dir, "ignored_area.png");
+//		setSize(800, 600);
 		setTitle("frame: " + frames_index);
 		add_key_listener();
 		setLayout(new BorderLayout());
@@ -80,13 +82,8 @@ public class MainWindow extends JFrame
 			@Override
 			public boolean dispatchKeyEvent(KeyEvent e) 
 			{
-				if (e.getID() == KeyEvent.KEY_PRESSED) 
+				if (e.getID() == KeyEvent.KEY_RELEASED) 
 				{
-//					System.out.println("KEY_PRESSED " + e.getKeyCode());
-				} 
-				else if (e.getID() == KeyEvent.KEY_RELEASED) 
-				{
-//					System.out.println("KEY_RELEASED " + e.getKeyCode());
 					if(e.getKeyCode() == KeyEvent.VK_RIGHT)
 					{
 						frames_index = (frames_index + 1) % frames.size();
@@ -94,11 +91,16 @@ public class MainWindow extends JFrame
 						MainWindow.this.drawPanel.set_frame(frames.get(frames_index));
 						MainWindow.this.drawPanel.repaint();
 					}
-				} 
-				else if (e.getID() == KeyEvent.KEY_TYPED) 
-				{
-//					System.out.println("KEY_TYPED " + e.getKeyCode());
+					else if(e.getKeyCode() == KeyEvent.VK_LEFT)
+					{
+						frames_index = (frames_index - 1) % frames.size();
+						setTitle("frame: " + frames_index);
+						MainWindow.this.drawPanel.set_frame(frames.get(frames_index));
+						MainWindow.this.drawPanel.repaint();
+					}
 				}
+				else if (e.getID() == KeyEvent.KEY_PRESSED) {}
+				else if (e.getID() == KeyEvent.KEY_TYPED) {}
 				return false;
 			}
 		});
@@ -108,11 +110,24 @@ public class MainWindow extends JFrame
 	{
 		JMenuBar menubar = new JMenuBar();
 		JMenu file_menu = new JMenu("file");
+		JMenuItem save_ignore_area_item = new JMenuItem("save ignore area");
 		JMenuItem exit_menu_item = new JMenuItem("exit");
+		save_ignore_area_item.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) 
+			{
+				try 
+				{
+					ImageIO.write(drawPanel.get_ignore_areas_img(), "png", ignore_areas_file_path);
+				} 
+				catch (IOException e1) {e1.printStackTrace();}
+			}
+		});
 		exit_menu_item.addActionListener(new ActionListener() 
 		{
 			@Override public void actionPerformed(ActionEvent e) {System.exit(0);}
 		});
+		file_menu.add(save_ignore_area_item);
 		file_menu.add(exit_menu_item);
 		menubar.add(file_menu);
 		setJMenuBar(menubar);
@@ -121,6 +136,17 @@ public class MainWindow extends JFrame
 	private void add_draw_panel() 
 	{
 		drawPanel = new DrawPanel(width, height, 8);
+		if(ignore_areas_file_path.exists())
+		{
+			try 
+			{
+				BufferedImage ignore_area = ImageIO.read(ignore_areas_file_path);
+				drawPanel.set_ignore_areas(ignore_area);
+			} 
+			catch (IOException e) {e.printStackTrace();}
+		}
+		// set base frame after ignore cause this function create
+		//  void ignore areas if it dosn't exist!
 		drawPanel.set_base_frame(base_frame);
 		drawPanel.set_frame(frames.elementAt(0));
 		add(drawPanel, BorderLayout.CENTER);

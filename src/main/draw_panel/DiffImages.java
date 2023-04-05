@@ -23,7 +23,8 @@ public class DiffImages
 					diff.setRGB(x, y, Color.black.getRGB());
 			}
 		
-		diff = clean_stand_alone_pixels(diff);
+		diff = clean_stand_alone_pixels(diff, 1);
+//		diff = clean_small_areas()
 		System.out.printf("time to calculate diff: %3.2f secs\n", (System.currentTimeMillis() - t0)/1000.0);
 		return diff;
 	}
@@ -37,12 +38,11 @@ public class DiffImages
 		return ret;
 	}
 
-	private static BufferedImage clean_stand_alone_pixels(BufferedImage image) 
+	private static BufferedImage clean_stand_alone_pixels(BufferedImage image, int min_neigbors) 
 	{
 		BufferedImage ret = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_ARGB);
 		final int x_offsets[] = {-1, 0, 1, -1, 1, -1, 0, 1};
 		final int y_offsets[] = {-1,-1,-1,  0, 0,  1, 1, 1};
-		final int min_neigbors = 4;
 		int cleaned_counter = 0;
 		for(int y = 1; y < image.getHeight()-1; y++)
 			for(int x = 1; x < image.getWidth()-1; x++)

@@ -136,6 +136,12 @@ public class DrawPanel extends Canvas
 		}
 	}
 	public void set_frame(BufferedImage image) {m_frame = image;}
+	public void set_ignore_areas(BufferedImage ignore_area) {
+		this.m_ignore_areas = ignore_area;
+		this.m_ignore_areas_g = this.m_ignore_areas.createGraphics();
+	}
+	
+	public BufferedImage get_ignore_areas_img() {return m_ignore_areas;}
 	
 	@Override
 	public void paint(Graphics g) 
@@ -177,10 +183,7 @@ public class DrawPanel extends Canvas
 	}
 
 
-	public void set_mode(int mode) 
-	{
-		MODE = mode;
-	}
+	public void set_mode(int mode) {MODE = mode;}
 	
 	public String get_treshold() {return "" + treshold;}
 	public void update_treshold(int value) 
@@ -189,6 +192,5 @@ public class DrawPanel extends Canvas
 		this.repaint();
 	}
 	public String get_ignore_radius() {return "" + ignore_radius;}
-
 	public void update_ignore_radius(int value) {ignore_radius = value;}
 }
