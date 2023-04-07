@@ -1,4 +1,4 @@
-package main.draw_panel;
+package main.gui;
 
 import java.awt.AlphaComposite;
 import java.awt.Canvas;
@@ -51,6 +51,7 @@ public class DrawPanel extends Canvas
 	
 	public DrawPanel(int w, int h, int padding)
 	{
+		testHello();
 		width = w; height = h;
 		this.padding = padding;
 		add_mouse_listeners();
@@ -175,9 +176,9 @@ public class DrawPanel extends Canvas
 		
 		if(m_base_frame != null && m_frame != null)
 		{
-			BufferedImage diff = DiffImages.calc_diff_mask(m_base_frame, m_frame, m_ignore_areas, treshold);
-			gscreen.drawImage(diff, x0, y1, image_w, image_h, null);
-			diff_area.update(x0, y1, x0 + image_w, y1 + image_h);
+//			BufferedImage diff = DiffImages.calc_diff_mask(m_base_frame, m_frame, m_ignore_areas, treshold);
+//			gscreen.drawImage(diff, x0, y1, image_w, image_h, null);
+//			diff_area.update(x0, y1, x0 + image_w, y1 + image_h);
 		}		
 		g.drawImage(screen, 0, 0, null);
 	}
@@ -193,4 +194,6 @@ public class DrawPanel extends Canvas
 	}
 	public String get_ignore_radius() {return "" + ignore_radius;}
 	public void update_ignore_radius(int value) {ignore_radius = value;}
+	
+	private native void testHello();
 }
