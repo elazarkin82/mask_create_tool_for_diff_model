@@ -7,12 +7,12 @@ int s_frame_index = 0;
 std::vector<std::string> all_frames_names;
 std::vector<uchar *> all_frames;
 std::vector<uchar *> work_frames;
-int s_tresh = 0;
-int s_ignore_radius;
+int s_tresh = 8;
+int s_ignore_radius = 26;
 int s_diff_frames_range;
 
 uchar *base_frame;
-std::vector<Pixel> ignore_pixels;
+uchar *ignore_areas_frame;
 
 extern "C" JNIEXPORT void JNICALL Java_main_MainWindow_initJni(
 	JNIEnv *env, jobject thisObj,jobjectArray all_frame_paths, int width, int height
@@ -40,6 +40,9 @@ extern "C" JNIEXPORT void JNICALL Java_main_MainWindow_initJni(
 	base_frame = (uchar *) malloc(width*height);
 	create_work_frames(all_frames, s_frame_index, s_diff_frames_range, work_frames);
 	create_base_frame(base_frame, width, height, work_frames);
+
+	ignore_areas_frame = (uchar *) malloc(width*height);
+	memset(ignore_areas_frame, 0, width*height);
 }
 
 extern "C" JNIEXPORT void JNICALL Java_main_listeners_MainWindowListener_deinitJni(JNIEnv *env, jobject thisObj)
@@ -59,9 +62,9 @@ extern "C" JNIEXPORT void JNICALL Java_main_MainWindow_moveFramesIndexJni(JNIEnv
 {
 	int size = all_frames.size();
 	if(size != 0)
-	{
 		s_frame_index = (s_frame_index + size + offset)%size;
-	}
+	create_work_frames(all_frames, s_frame_index, s_diff_frames_range, work_frames);
+	create_base_frame(base_frame, s_width, s_height, work_frames);
 }
 
 extern "C" JNIEXPORT void JNICALL Java_main_MainWindow_updateTreshJni(JNIEnv *env, jobject thisObj, jint thresh)
@@ -99,7 +102,33 @@ extern "C" JNIEXPORT void JNICALL Java_main_gui_DrawPanel_readBaseFrameBytesJni(
 
 extern "C" JNIEXPORT void JNICALL Java_main_gui_DrawPanel_readFrameBytesJni(JNIEnv *env, jobject thisObj, jbyteArray jframe_bytes)
 {
+	static const int IGNORE_AREA_OFFSET = -100;
 	uchar *ptr = (uchar *)env->GetByteArrayElements(jframe_bytes, 0);
 	memcpy(ptr, all_frames[s_frame_index], s_width*s_height);
+	for(int i = 0; i < s_width*s_height; i++)
+		if(ignore_areas_frame[i] == 255)
+			ptr[i] += IGNORE_AREA_OFFSET;
+//			ptr[i] = MAX(0, MIN(255, ptr[i] + IGNORE_AREA_OFFSET));
 	env->ReleaseByteArrayElements(jframe_bytes, (jbyte*)ptr, 0);
+}
+
+extern "C" JNIEXPORT void JNICALL Java_main_gui_DrawPanel_readDiffFrameBytesJni(JNIEnv *env, jobject thisObj, jbyteArray jframe_bytes)
+{
+	uchar *ptr = (uchar *)env->GetByteArrayElements(jframe_bytes, 0);
+	UcharMemoryGuard simple_diff(s_width*s_height);
+
+	calculate_simple_diff(all_frames[s_frame_index], base_frame, s_width, s_height, s_tresh, simple_diff.data());
+	remove_ingore_areas(ignore_areas_frame, simple_diff.data(), s_width, s_height);
+	memcpy(ptr, simple_diff.data(), s_width*s_height);
+	env->ReleaseByteArrayElements(jframe_bytes, (jbyte*)ptr, 0);
+}
+
+extern "C" JNIEXPORT void JNICALL Java_main_gui_DrawPanel_addIgnoreAreaJni(JNIEnv *env, jobject thisObj, jint jx, jint jy)
+{
+	set_ignore_area_frame_values_in_radius(ignore_areas_frame, jx, jy, s_width, s_height, s_ignore_radius, 255);
+}
+
+extern "C" JNIEXPORT void JNICALL Java_main_gui_DrawPanel_removeIgnoreAreaJni(JNIEnv *env, jobject thisObj, int jx, int jy)
+{
+	set_ignore_area_frame_values_in_radius(ignore_areas_frame, jx, jy, s_width, s_height, s_ignore_radius, 0);
 }

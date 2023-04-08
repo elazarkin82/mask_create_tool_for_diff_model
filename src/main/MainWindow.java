@@ -158,7 +158,7 @@ public class MainWindow extends JFrame
 			public void itemStateChanged(ItemEvent e) 
 			{
 				updateTreshJni(Integer.parseInt((String)e.getItem()));
-				MainWindow.this.repaint();
+				MainWindow.this.draw_panel.repaint();
 			}
 		});
 		treshholds_combo_box.setSelectedItem("" + getTreshJni());
@@ -173,22 +173,15 @@ public class MainWindow extends JFrame
 		});
 		ignore_radius_combo_box.setSelectedItem("" + getIgnoreRadiusJni());
 		
-		mode_button = new JButton("set ignore draw");
+		mode_button = new JButton(DrawPanel.MODE_TITLE[draw_panel.get_current_mode()]);
 		mode_button.addActionListener(new ActionListener() 
 		{
 			@Override
 			public void actionPerformed(ActionEvent e) 
 			{
-				if(mode_button.getText().equals("set ignore draw"))
-				{
-					mode_button.setText("normal");
-					MainWindow.this.draw_panel.set_mode(DrawPanel.MODE_SET_IGNORE_AREA);
-				}
-				else
-				{
-					mode_button.setText("set ignore draw");
-					MainWindow.this.draw_panel.set_mode(DrawPanel.MODE_NORMAL);
-				}
+				int next_mode = (draw_panel.get_current_mode() + 1) % DrawPanel.MODE_TITLE.length;
+				mode_button.setText(DrawPanel.MODE_TITLE[next_mode]);
+				MainWindow.this.draw_panel.set_mode(next_mode);
 			}
 		});
 		commands_panel.setLayout(new FlowLayout(FlowLayout.LEFT));

@@ -1,8 +1,6 @@
 package main.gui;
 
-import java.awt.AlphaComposite;
 import java.awt.Canvas;
-import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Graphics;
@@ -20,15 +18,20 @@ public class DrawPanel extends Canvas
 	
 	public static final int MODE_NORMAL = 0;
 	public static final int MODE_SET_IGNORE_AREA = 1;
+	public static final int MODE_DELETE_IGNORE_AREA = 2;
+	
+	public static final String MODE_TITLE[] = {
+		"Normal", "Set ignore area", "Delete ignore area"
+	};
 
 	private class Area
 	{
 		int x0 = -1, y0 = -1, x1 = -1, y1 = -1;
 		
 		public Area() {}
-		public void update(int x0, int y0, int x1, int y1)
+		public void update(int x0, int y0, int w, int h)
 		{
-			this.x0 = x0;this.x1 = x1; this.y0 = y0;this.y1 = y1;
+			this.x0 = x0; this.x1 = x0 + w; this.y0 = y0; this.y1 = y0 + h;
 		}
 		
 		public boolean is_inside(int x, int y)
@@ -39,20 +42,20 @@ public class DrawPanel extends Canvas
 	
 	private BufferedImage m_base_frame = null;
 	private BufferedImage m_frame = null;
-	private BufferedImage m_mask = null;
+	private BufferedImage m_diff_frame = null;
 	private BufferedImage m_ignore_areas = null;
 	private int width, height, padding;
 	private BufferedImage screen = null;
 	private Graphics2D gscreen;
-	private Area frame_area = new Area();
-	private Area diff_area = new Area();
-	private int MODE = MODE_NORMAL;
+	private Area m_frame_area = new Area();
+	private Area m_diff_area = new Area();
+	private int m_mode = MODE_NORMAL;
 	
 	public DrawPanel(int w, int h, int padding)
 	{
 		m_base_frame = new BufferedImage(w, h, BufferedImage.TYPE_BYTE_GRAY);
 		m_frame = new BufferedImage(w, h, BufferedImage.TYPE_BYTE_GRAY);
-		m_mask = new BufferedImage(w, h, BufferedImage.TYPE_BYTE_GRAY);
+		m_diff_frame = new BufferedImage(w, h, BufferedImage.TYPE_BYTE_GRAY);
 		m_ignore_areas = new BufferedImage(w, h, BufferedImage.TYPE_BYTE_GRAY);
 		width = w; height = h;
 		this.padding = padding;
@@ -67,12 +70,16 @@ public class DrawPanel extends Canvas
 			public void mouseMoved(MouseEvent e) 
 			{
 				Area ignore_area_setter = null;
-				if(diff_area.is_inside(e.getX(), e.getY()))
-					ignore_area_setter = diff_area;
-				else if(frame_area.is_inside(e.getX(), e.getY()))
-					ignore_area_setter = frame_area;
+				if(m_diff_area.is_inside(e.getX(), e.getY()))
+				{
+					ignore_area_setter = m_diff_area;
+				}
+				else if(m_frame_area.is_inside(e.getX(), e.getY()))
+				{
+					ignore_area_setter = m_frame_area;
+				}
 				
-				if(MODE == MODE_SET_IGNORE_AREA && ignore_area_setter != null)
+				if(m_mode == MODE_SET_IGNORE_AREA && ignore_area_setter != null)
 				{
 					int x = e.getX() - ignore_area_setter.x0;
 					int y = e.getY() - ignore_area_setter.y0;
@@ -87,22 +94,25 @@ public class DrawPanel extends Canvas
 			@Override public void mouseDragged(MouseEvent e) {}
 		});
 		
-		addMouseListener(new MouseListener() {
-			
+		addMouseListener(new MouseListener() 
+		{
 			@Override
 			public void mouseReleased(MouseEvent e) 
 			{
 				Area ignore_area_setter = null;
-				if(diff_area.is_inside(e.getX(), e.getY()))
-					ignore_area_setter = diff_area;
-				else if(frame_area.is_inside(e.getX(), e.getY()))
-					ignore_area_setter = frame_area;
+				if(m_diff_area.is_inside(e.getX(), e.getY()))
+					ignore_area_setter = m_diff_area;
+				else if(m_frame_area.is_inside(e.getX(), e.getY()))
+					ignore_area_setter = m_frame_area;
 				
-				if(MODE == MODE_SET_IGNORE_AREA && ignore_area_setter != null)
+				if((m_mode == MODE_SET_IGNORE_AREA || m_mode == MODE_DELETE_IGNORE_AREA) && ignore_area_setter != null)
 				{
 					int x = (int)((e.getX() - ignore_area_setter.x0)*m_frame.getWidth()/(ignore_area_setter.x1 - ignore_area_setter.x0));
 					int y = (int)((e.getY() - ignore_area_setter.y0)*m_frame.getHeight()/(ignore_area_setter.y1 - ignore_area_setter.y0));
-					addIgnoreAreaJni(x, y);
+					if(m_mode == MODE_SET_IGNORE_AREA)
+						addIgnoreAreaJni(x, y);
+					else
+						removeIgnoreAreaJni(x, y);
 					DrawPanel.this.repaint();
 				}
 			}
@@ -144,13 +154,24 @@ public class DrawPanel extends Canvas
 			byte gray_bytes[] = ((DataBufferByte)m_frame.getRaster().getDataBuffer()).getData();
 			readFrameBytesJni(gray_bytes);
 			gscreen.drawImage(m_frame, x1, y0, image_w, image_h, null);
+			m_frame_area.update(x1, y0, image_w, image_h);
+		}
+		if(m_frame != null && m_base_frame != null)
+		{
+			byte gray_bytes[] = ((DataBufferByte)m_diff_frame.getRaster().getDataBuffer()).getData();
+			readDiffFrameBytesJni(gray_bytes);
+			gscreen.drawImage(m_diff_frame, x0, y1, image_w, image_h, null);
+			m_diff_area.update(x0, y1, image_w, image_h);
 		}
 		g.drawImage(screen, 0, 0, null);
 	}
 
-	public void set_mode(int mode) {MODE = mode;}
+	public void set_mode(int mode) {m_mode = mode;}
+	public int get_current_mode() {return m_mode;}
 	private native void getBaseFrame(byte [] pixels);
 	private native void readBaseFrameBytesJni(byte[] image_bytes);
 	private native void readFrameBytesJni(byte[] image_bytes);
+	private native void readDiffFrameBytesJni(byte[] image_bytes);
 	private native void addIgnoreAreaJni(int x, int y);
+	private native void removeIgnoreAreaJni(int x, int y);
 }
