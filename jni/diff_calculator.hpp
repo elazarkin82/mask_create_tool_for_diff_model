@@ -20,10 +20,11 @@
 
 typedef unsigned char uchar;
 
-typedef struct
+struct Pixel
 {
+	Pixel(int _x, int _y): x(_x), y(_y){}
 	int x, y;
-}Pixel;
+};
 
 class UcharMemoryGuard
 {
@@ -36,6 +37,12 @@ public:
 		m_data = (uchar *) malloc(size);
 		m_size = size;
 	}
+	UcharMemoryGuard(uchar *data, size_t size)
+	{
+		m_data = (uchar *) malloc(size);
+		memcpy(m_data, data, size);
+		m_size = size;
+	}
 	virtual ~UcharMemoryGuard()
 	{
 		free(m_data);
@@ -44,12 +51,16 @@ public:
 	uchar & operator [](int index) {return m_data[index];}
 };
 
+static const int X_OFFSETS[] = {-1, 0, 1,-1, 1,-1, 0, 1};
+static const int Y_OFFSETS[] = {-1,-1,-1, 0, 0, 1, 1, 1};
+static const int OFFSETS_SIZE = sizeof(X_OFFSETS)/sizeof(int);
+
 
 void create_work_frames(std::vector<uchar*>&all_frames, int frame_index, int diff_frames_range, std::vector<uchar*>&work_frames)
 {
 	int start_index = MAX(0, frame_index - diff_frames_range);
 	int end_index = start_index  + diff_frames_range;
-	work_frames.empty();
+	work_frames.clear();
 	for(int i = start_index; i < end_index; i++)
 		work_frames.push_back(all_frames[i]);
 	fprintf(stderr, "work_frames size: %zu\n", work_frames.size());
@@ -127,10 +138,11 @@ void calculate_simple_diff(uchar *frame, uchar *base_frame, int w, int h, int tr
 
 void set_ignore_area_frame_values_in_radius(uchar *ignore_areas_frame, int jx, int jy, int w, int h, int ignore_radius, uchar value)
 {
-	int min_x = MAX(0, jx - ignore_radius);
-	int max_x = MIN(w, jx + ignore_radius);
-	int min_y = MAX(0, jy - ignore_radius);
-	int max_y = MIN(h, jy + ignore_radius);
+	// Important leave pixel black border for next algorithms
+	int min_x = MAX(1, jx - ignore_radius);
+	int max_x = MIN(w-1, jx + ignore_radius);
+	int min_y = MAX(1, jy - ignore_radius);
+	int max_y = MIN(h-1, jy + ignore_radius);
 
 	for(int y = min_y; y < max_y; y++)
 		for(int x = min_x; x< max_x; x++)
@@ -146,6 +158,72 @@ void remove_ingore_areas(uchar *ignore_areas_frame, uchar *diff_frame, int w, in
 	for(int i = 0; i < w*h; i++)
 		if(ignore_areas_frame[i] == 255)
 			diff_frame[i] = 0;
+}
+
+void remove_bulge_pixels_by_neighbord_size(uchar *diff_frame, int w, int h, int min_neigbords)
+{
+	UcharMemoryGuard helpful_mask(diff_frame, w*h);
+	for(int y = 1; y < h -1; y++)
+		for(int x = 1; x < w - 1; x++)
+		{
+			int neigbords_size = 0;
+			for(int i = 0; i < OFFSETS_SIZE; i++)
+			{
+				int curr_x = x + X_OFFSETS[i];
+				int curr_y = y + Y_OFFSETS[i];
+				if(diff_frame[curr_y*w + curr_x] == 255)
+					neigbords_size++;
+			}
+			if(neigbords_size < min_neigbords)
+			{
+				helpful_mask[y*w + x] = 0;
+			}
+		}
+	memcpy(diff_frame, helpful_mask.data(), w*h);
+}
+
+void inline _find_blob(uchar *img, int w, int h, int x, int y, std::vector<Pixel> &pixels)
+{
+	pixels.push_back(Pixel(x, y));
+	img[pixels[0].y*w + pixels[0].x] = 0;
+	for(int i = 0; i < pixels.size(); i++)
+	{
+		Pixel &curr_pixel = pixels[i];
+		for(int i = 0; i < OFFSETS_SIZE; i++)
+		{
+			Pixel next_pixel(curr_pixel.x + X_OFFSETS[i], curr_pixel.y + Y_OFFSETS[i]);
+			// we dosn't fear about crossing of the border cause the img have black rectangle on the border edge ??
+			if(next_pixel.x >= 0 && next_pixel.x < w && next_pixel.y >= 0  && next_pixel.y < h)
+			{
+				if(img[next_pixel.y*w + next_pixel.x] == 255)
+				{
+					pixels.push_back(next_pixel);
+					img[next_pixel.y*w + next_pixel.x] = 0;
+				}
+			}
+		}
+	}
+}
+
+void remove_small_parts(uchar *diff_frame, int w, int h, int min_part_size)
+{
+	std::vector<Pixel> pixel_container;
+	UcharMemoryGuard helpful_mask(diff_frame, w*h);
+
+	for(int y = 1; y < h -1; y++)
+		for(int x = 1; x < w - 1; x++)
+		{
+			if(helpful_mask[y*w + x] == 255)
+			{
+				pixel_container.clear();
+				_find_blob(helpful_mask.data(), w, h, x, y, pixel_container);
+				if(pixel_container.size() < min_part_size)
+					for(Pixel p: pixel_container)
+						diff_frame[p.y*w + p.x] = 0;
+				else fprintf(stderr, "remove_small_parts not clean %zu size part!\n", pixel_container.size());
+			}
+		}
+	fprintf(stderr, "\n\n");
 }
 
 #endif /* JNI_DIFF_CALCULATOR_HPP_ */

@@ -119,6 +119,8 @@ extern "C" JNIEXPORT void JNICALL Java_main_gui_DrawPanel_readDiffFrameBytesJni(
 
 	calculate_simple_diff(all_frames[s_frame_index], base_frame, s_width, s_height, s_tresh, simple_diff.data());
 	remove_ingore_areas(ignore_areas_frame, simple_diff.data(), s_width, s_height);
+	remove_bulge_pixels_by_neighbord_size(simple_diff.data(), s_width, s_height, 2);
+	remove_small_parts(simple_diff.data(), s_width, s_height, 100);
 	memcpy(ptr, simple_diff.data(), s_width*s_height);
 	env->ReleaseByteArrayElements(jframe_bytes, (jbyte*)ptr, 0);
 }
