@@ -18,12 +18,15 @@ import java.util.Vector;
 
 import javax.swing.JButton;
 import javax.swing.JComboBox;
+import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JProgressBar;
 
 import main.gui.DrawPanel;
 import main.listeners.MainWindowListener;
@@ -38,7 +41,7 @@ public class MainWindow extends JFrame
 	private int width, height;
 	private DrawPanel draw_panel;
 	private File ignore_areas_file_path;
-	
+	private JDialog progress_dialog;
 	
 	public MainWindow(String samples_dir_path, int width, int height) 
 	{
@@ -56,8 +59,18 @@ public class MainWindow extends JFrame
 		add_menu_bar();
 		addWindowListener(new MainWindowListener());
 		init_variables(samples_dir_path);
+		init_progress_block_pane();
 	}
 	
+	private void init_progress_block_pane() 
+	{
+		progress_dialog = new JDialog(this, "please wait!", true);
+		progress_dialog.add(BorderLayout.CENTER, new JLabel("  In progress..."));
+		progress_dialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
+		progress_dialog.setSize(300, 75);
+		progress_dialog.setLocationRelativeTo(this);
+	}
+
 	private void init_variables(String samples_dir_path) 
 	{
 		File sample_dir = new File(samples_dir_path);
@@ -69,7 +82,7 @@ public class MainWindow extends JFrame
 				&& 
 				!f.getName().startsWith("base_frame.") 
 				&&
-				!f.getName().endsWith("_mask.png")
+				!f.getName().endsWith("_mask.bmp")
 				&&
 				!f.getName().endsWith("_mask.bin")
 				&&
@@ -94,7 +107,7 @@ public class MainWindow extends JFrame
 			}
 		});
 		// 300 frame for 30fps ~= 10 secs
-		setDiffFramesRangeJni(Math.min(1800, all_samples_files.size()));
+		setDiffFramesRangeJni(Math.min(300, all_samples_files.size()));
 		initJni(all_samples_files.toArray(new String[all_samples_files.size()]), width, height);
 		
 		ignore_areas_file_path = new File(sample_dir, "ignored_area.bin");
@@ -114,13 +127,15 @@ public class MainWindow extends JFrame
 				{
 					if(e.getKeyCode() == KeyEvent.VK_RIGHT)
 					{
-						moveFramesIndexJni(1);
+						int step = e.isControlDown() ? 10: 1;
+						moveFramesIndexJni(step);
 						setTitle("frame: " + getFrameIndexJni());
 						draw_panel.repaint();
 					}
 					else if(e.getKeyCode() == KeyEvent.VK_LEFT)
 					{
-						moveFramesIndexJni(-1);
+						int step = e.isControlDown() ? 10: 1;
+						moveFramesIndexJni(-step);
 						setTitle("frame: " + getFrameIndexJni());
 						draw_panel.repaint();
 					}
@@ -137,6 +152,7 @@ public class MainWindow extends JFrame
 		JMenuBar menubar = new JMenuBar();
 		JMenu file_menu = new JMenu("file");
 		JMenuItem save_ignore_area_item = new JMenuItem("save ignore area");
+		JMenuItem save_items_mask = new JMenuItem("save items mask");
 		JMenuItem exit_menu_item = new JMenuItem("exit");
 		save_ignore_area_item.addActionListener(new ActionListener() {
 			@Override
@@ -145,11 +161,23 @@ public class MainWindow extends JFrame
 				saveIgnoreAreasMask(ignore_areas_file_path.getAbsolutePath());
 			}
 		});
+		save_items_mask.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) 
+			{
+				Thread t = new Thread(new Runnable(){public void run() {progress_dialog.setVisible(true);}});
+				t.start();
+				saveAllItemMasksJni();
+				progress_dialog.setVisible(false);
+				MainWindow.this.repaint();
+			}
+		});
 		exit_menu_item.addActionListener(new ActionListener() 
 		{
 			@Override public void actionPerformed(ActionEvent e) {System.exit(0);}
 		});
 		file_menu.add(save_ignore_area_item);
+		file_menu.add(save_items_mask);
 		file_menu.add(exit_menu_item);
 		menubar.add(file_menu);
 		setJMenuBar(menubar);
@@ -163,7 +191,7 @@ public class MainWindow extends JFrame
 		JLabel ignore_title = new JLabel("ignore radius");
 		JComboBox<String> ignore_radius_cb = new JComboBox<String>(create_combo_box_int_options(2, 100, 8));
 		JLabel min_blob_size_title = new JLabel("blob size");
-		JComboBox<String> min_blobs_size_cb = new JComboBox<String>(create_combo_box_int_options(100, 4000, 8));
+		JComboBox<String> min_blobs_size_cb = new JComboBox<String>(create_combo_box_int_options(50, 4000, 50));
 		JLabel mode_title = new JLabel("mode");
 		JLabel tresh_title = new JLabel("thresh");
 		
@@ -175,11 +203,11 @@ public class MainWindow extends JFrame
 			@Override
 			public void itemStateChanged(ItemEvent e) 
 			{
-				updateTreshJni(Integer.parseInt((String)e.getItem()));
+				updateThreshJni(Integer.parseInt((String)e.getItem()));
 				draw_panel.repaint();
 			}
 		});
-		treshholds_cb.setSelectedItem("" + getTreshJni());
+		treshholds_cb.setSelectedItem("" + getThreshJni());
 		
 		min_blobs_size_cb.addItemListener(new ItemListener() 
 		{
@@ -211,6 +239,8 @@ public class MainWindow extends JFrame
 				if(play_button.getText().equals("play"))
 				{
 					play_button.setText("stop");
+					// TODO move this thread outside and care that in closing all mission complited cause 
+					//  of jni crashing!
 					new Thread(new Runnable() 
 					{
 						@Override
@@ -241,10 +271,13 @@ public class MainWindow extends JFrame
 			}
 		});
 		commands_panel.setLayout(new FlowLayout(FlowLayout.LEFT));
+		commands_panel.add(thresh_title);
 		commands_panel.add(tresh_title);
 		commands_panel.add(treshholds_cb);
 		commands_panel.add(ignore_title);
 		commands_panel.add(ignore_radius_cb);
+		commands_panel.add(min_blob_size_title);
+		commands_panel.add(min_blobs_size_cb);
 		commands_panel.add(mode_title);
 		commands_panel.add(mode_button);
 		commands_panel.add(play_button);
@@ -271,10 +304,11 @@ public class MainWindow extends JFrame
 	private native void setDiffFramesRangeJni(int frames_size);
 	private native void loadIgnoreAreaMask(String file_path);
 	private native void saveIgnoreAreasMask(String out_path);
+	private native void saveAllItemMasksJni();
 	
 	public static void main(String[] args) 
 	{
-		new MainWindow("/home/elazarkin/storage/datasets/diff_project/samples/7", 640, 480).setVisible(true);
+		new MainWindow("/home/elazarkin/storage/datasets/diff_project/samples/12", 640, 480).setVisible(true);
 	}
 
 }

@@ -63,6 +63,19 @@ public:
 	uchar & operator [](int index) {return m_data[index];}
 };
 
+static int s_width = 0, s_height = 0;
+static int s_frame_index = 0;
+static std::vector<std::string> all_frames_names;
+static std::vector<uchar *> all_frames;
+static std::vector<uchar *> work_frames;
+static int s_thresh = 8;
+static int s_min_blob_size = 100;
+static int s_ignore_radius = 26;
+static int s_diff_frames_range;
+
+uchar *base_frame;
+uchar *ignore_areas_frame;
+
 static const int X_OFFSETS[] = {-1, 0, 1,-1, 1,-1, 0, 1};
 static const int Y_OFFSETS[] = {-1,-1,-1, 0, 0, 1, 1, 1};
 static const int OFFSETS_SIZE = sizeof(X_OFFSETS)/sizeof(int);
@@ -263,6 +276,15 @@ void remove_small_parts(uchar *diff_frame, int w, int h, int min_part_size)
 				else fprintf(stderr, "remove_small_parts not clean %zu size part!\n", pixel_container.size());
 			}
 		}
+}
+
+void create_diff_mask(uchar *frame, uchar *base_frame, uchar *out_diff_mask)
+{
+	memset(out_diff_mask, 0, s_width*s_height);
+	calculate_simple_diff(frame, base_frame, s_width, s_height, s_thresh, out_diff_mask);
+	remove_ingore_areas(ignore_areas_frame, out_diff_mask, s_width, s_height);
+	remove_bulge_pixels_by_neighbord_size(out_diff_mask, s_width, s_height, 2);
+	remove_small_parts(out_diff_mask, s_width, s_height, s_min_blob_size);
 }
 
 #endif /* JNI_DIFF_CALCULATOR_HPP_ */

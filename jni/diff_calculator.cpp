@@ -1,18 +1,9 @@
 #include <jni.h>
 
 #include "diff_calculator.hpp"
+#include "bmp_saver.hpp"
 
-int s_width = 0, s_height = 0;
-int s_frame_index = 0;
-std::vector<std::string> all_frames_names;
-std::vector<uchar *> all_frames;
-std::vector<uchar *> work_frames;
-int s_thresh = 8;
-int s_ignore_radius = 26;
-int s_diff_frames_range;
-
-uchar *base_frame;
-uchar *ignore_areas_frame;
+#include <regex>
 
 extern "C" JNIEXPORT void JNICALL Java_main_MainWindow_initJni(
 	JNIEnv *env, jobject thisObj,jobjectArray all_frame_paths, int width, int height
@@ -86,6 +77,11 @@ extern "C" JNIEXPORT void JNICALL Java_main_MainWindow_updateIgnoreRadiusJni(JNI
 	s_ignore_radius = ignore_radius;
 }
 
+extern "C" JNIEXPORT void JNICALL Java_main_MainWindow_setMinBlobSizeJni(JNIEnv *env, jobject thisObj, jint min_blob_size)
+{
+	s_min_blob_size = min_blob_size;
+}
+
 extern "C" JNIEXPORT jint JNICALL Java_main_MainWindow_getIgnoreRadiusJni(JNIEnv *env, jobject thisObj)
 {
 	return s_ignore_radius;
@@ -124,6 +120,32 @@ extern "C" JNIEXPORT void JNICALL Java_main_MainWindow_saveIgnoreAreasMask(JNIEn
 	env->ReleaseStringUTFChars(jout_path, out_path);
 }
 
+extern "C" JNIEXPORT void JNICALL Java_main_MainWindow_saveAllItemMasksJni(JNIEnv *env, jobject thisObj)
+{
+	UcharMemoryGuard out_diff_mask(s_width*s_height);
+	UcharMemoryGuard bmp_diff_mask(s_width*s_height*3);
+
+	for(int i = 0; i < all_frames.size(); i++)
+	{
+		std::string bmp_out_path = std::regex_replace(all_frames_names[i], std::regex(".bin"), "_mask.bmp");
+		create_work_frames(all_frames, i, s_diff_frames_range, work_frames);
+		create_base_frame(base_frame, s_width, s_height, work_frames);
+		create_diff_mask(all_frames[i], base_frame, out_diff_mask.data());
+
+		for(int y = 0; y < s_height; y++)
+			for(int x = 0; x < s_width; x++)
+			{
+				int j = y*s_width + x;
+				int j2 = (s_height - 1 - y)*s_width + x;
+				bmp_diff_mask[j2*3] = out_diff_mask[j];
+				bmp_diff_mask[j2*3+1] = out_diff_mask[j];
+				bmp_diff_mask[j2*3+2] = out_diff_mask[j];
+			}
+
+		bmp::saveBitmapImage(bmp_diff_mask.data(), s_width, s_height, 3, bmp_out_path.c_str());
+	}
+}
+
 extern "C" JNIEXPORT void JNICALL Java_main_gui_DrawPanel_readBaseFrameBytesJni(JNIEnv *env, jobject thisObj, jbyteArray jframe_bytes)
 {
 	uchar *ptr = (uchar *)env->GetByteArrayElements(jframe_bytes, 0);
@@ -133,7 +155,7 @@ extern "C" JNIEXPORT void JNICALL Java_main_gui_DrawPanel_readBaseFrameBytesJni(
 
 extern "C" JNIEXPORT void JNICALL Java_main_gui_DrawPanel_readFrameBytesJni(JNIEnv *env, jobject thisObj, jbyteArray jframe_bytes)
 {
-	static const int IGNORE_AREA_OFFSET = -100;
+	static const int IGNORE_AREA_OFFSET = -50;
 	uchar *ptr = (uchar *)env->GetByteArrayElements(jframe_bytes, 0);
 	memcpy(ptr, all_frames[s_frame_index], s_width*s_height);
 	for(int i = 0; i < s_width*s_height; i++)
@@ -147,13 +169,7 @@ extern "C" JNIEXPORT void JNICALL Java_main_gui_DrawPanel_readDiffFrameBytesJni(
 {
 	uint64_t t0 = getUseconds();
 	uchar *ptr = (uchar *)env->GetByteArrayElements(jframe_bytes, 0);
-	UcharMemoryGuard simple_diff(s_width*s_height);
-
-	calculate_simple_diff(all_frames[s_frame_index], base_frame, s_width, s_height, s_thresh, simple_diff.data());
-	remove_ingore_areas(ignore_areas_frame, simple_diff.data(), s_width, s_height);
-	remove_bulge_pixels_by_neighbord_size(simple_diff.data(), s_width, s_height, 2);
-	remove_small_parts(simple_diff.data(), s_width, s_height, 100);
-	memcpy(ptr, simple_diff.data(), s_width*s_height);
+	create_diff_mask(all_frames[s_frame_index], base_frame, ptr);
 	env->ReleaseByteArrayElements(jframe_bytes, (jbyte*)ptr, 0);
 	fprintf(stderr, "time calc diff take %3.4f secs\n", (getUseconds() - t0)/1000000.0f);
 }
