@@ -36,6 +36,7 @@ public class MainWindow extends JFrame
 	
 	static {System.loadLibrary("diff_calculator_jni");}
 	
+	private int samples_size;
 	private int width, height;
 	private DrawPanel draw_panel;
 	private File ignore_areas_file_path;
@@ -77,6 +78,8 @@ public class MainWindow extends JFrame
 				f.getName().endsWith(".bin")
 			)
 				all_samples_files.add(f.getAbsolutePath());
+		
+		samples_size = all_samples_files.size();
 		
 		Collections.sort(all_samples_files, new Comparator<String>() 
 		{
@@ -161,6 +164,7 @@ public class MainWindow extends JFrame
 		JLabel mode_title = new JLabel("mode");
 		JLabel tresh_title = new JLabel("thresh");
 		JLabel ignore_title = new JLabel("ignore radius");
+		final JButton play_button;
 		final JButton mode_button;
 		JComboBox<String> ignore_radius_combo_box = new JComboBox<String>(create_combo_box_int_options(2, 100, 8));;
 		
@@ -185,6 +189,33 @@ public class MainWindow extends JFrame
 		});
 		ignore_radius_combo_box.setSelectedItem("" + getIgnoreRadiusJni());
 		
+		play_button = new JButton("play");
+		play_button.addActionListener(new ActionListener() 
+		{
+			@Override
+			public void actionPerformed(ActionEvent e) 
+			{
+				if(play_button.getText().equals("play"))
+				{
+					play_button.setText("stop");
+					new Thread(new Runnable() 
+					{
+						@Override
+						public void run() 
+						{
+							while(play_button.getText().equals("stop"))
+							{
+								moveFramesIndexJni(1);
+								MainWindow.this.setTitle("" + getFrameIndexJni());
+								draw_panel.repaint();
+							}
+						}
+					}).start();
+				}
+				else play_button.setText("play");
+			}
+		});
+		
 		mode_button = new JButton(DrawPanel.MODE_TITLE[draw_panel.get_current_mode()]);
 		mode_button.addActionListener(new ActionListener() 
 		{
@@ -203,6 +234,7 @@ public class MainWindow extends JFrame
 		commands_panel.add(ignore_radius_combo_box);
 		commands_panel.add(mode_title);
 		commands_panel.add(mode_button);
+		commands_panel.add(play_button);
 		add(commands_panel, BorderLayout.NORTH);
 	}
 
@@ -216,11 +248,11 @@ public class MainWindow extends JFrame
 	
 	private native void initJni(String[] all_frames_pathes, int w, int h);
 	private native int getFrameIndexJni();
+	private native void moveFramesIndexJni(int i);
 	private native void updateTreshJni(int parseInt);
 	private native int getTreshJni();
 	private native void updateIgnoreRadiusJni(int parseInt);
 	private native int getIgnoreRadiusJni();
-	private native void moveFramesIndexJni(int i);
 	private native void getIgnoreFrame(byte [] pixels);
 	private native void setDiffFramesRangeJni(int frames_size);
 	private native void loadIgnoreAreaMask(String file_path);

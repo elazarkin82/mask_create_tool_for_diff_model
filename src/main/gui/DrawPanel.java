@@ -131,6 +131,7 @@ public class DrawPanel extends Canvas
 	@Override
 	public void paint(Graphics g) 
 	{
+		long t0 = System.currentTimeMillis();
 		Dimension max_size = getSize();
 		int image_w, image_h, x0, y0, x1, y1;
 		if(screen == null || screen.getWidth() != max_size.width || screen.getHeight() != max_size.height)
@@ -164,6 +165,7 @@ public class DrawPanel extends Canvas
 			m_diff_area.update(x0, y1, image_w, image_h);
 		}
 		g.drawImage(screen, 0, 0, null);
+		System.out.printf("Java: time take to redraw %3.4f secs\n", (System.currentTimeMillis() - t0)/1000.0);
 	}
 
 	public void set_mode(int mode) {m_mode = mode;}

@@ -73,7 +73,6 @@ void create_work_frames(std::vector<uchar*>&all_frames, int frame_index, int dif
 	work_frames.clear();
 	for(int i = start_index; i < end_index; i++)
 		work_frames.push_back(all_frames[i]);
-	fprintf(stderr, "work_frames size: %zu\n", work_frames.size());
 }
 
 inline int _calc_best_index(int min_index, int range, int *histograms)
@@ -108,7 +107,7 @@ void create_base_frame(uchar *base_frame, int w, int h, std::vector<uchar*>&work
 			int best_value = histogram[min_value];
 			int best_index = min_value;
 			for(int j = min_value; j <= max_value; j++)
-				if(histogram[i] > best_value)
+				if(histogram[j] > best_value)
 				{
 					best_value = histogram[j];
 					best_index = j;
@@ -234,7 +233,6 @@ void remove_small_parts(uchar *diff_frame, int w, int h, int min_part_size)
 				else fprintf(stderr, "remove_small_parts not clean %zu size part!\n", pixel_container.size());
 			}
 		}
-	fprintf(stderr, "\n\n");
 }
 
 #endif /* JNI_DIFF_CALCULATOR_HPP_ */

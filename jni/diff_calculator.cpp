@@ -60,11 +60,13 @@ extern "C" JNIEXPORT jint JNICALL Java_main_MainWindow_getFrameIndexJni(JNIEnv *
 
 extern "C" JNIEXPORT void JNICALL Java_main_MainWindow_moveFramesIndexJni(JNIEnv *env, jobject thisObj, jint offset)
 {
+	uint64_t t0 = getUseconds();
 	int size = all_frames.size();
 	if(size != 0)
 		s_frame_index = (s_frame_index + size + offset)%size;
 	create_work_frames(all_frames, s_frame_index, s_diff_frames_range, work_frames);
 	create_base_frame(base_frame, s_width, s_height, work_frames);
+	fprintf(stderr, "time to recreate base take %3.4f secs\n", (getUseconds() - t0)/1000000.0f);
 }
 
 extern "C" JNIEXPORT void JNICALL Java_main_MainWindow_updateTreshJni(JNIEnv *env, jobject thisObj, jint thresh)

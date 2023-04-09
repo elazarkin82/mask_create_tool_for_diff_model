@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.22.1)
 project("diff_calculator")
 
 set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g")
 
 include_directories(
 	/usr/lib/jvm/java-11-openjdk-amd64/include/
