@@ -19,6 +19,7 @@ extern "C" JNIEXPORT void JNICALL Java_main_MainWindow_initJni(
 )
 {
 	int stringCount = env->GetArrayLength(all_frame_paths);
+	fprintf(stderr, "start initJni!\n");
 	s_width = width;
 	s_height = height;
 	for (int i = 0; i < stringCount; i++)
@@ -30,7 +31,10 @@ extern "C" JNIEXPORT void JNICALL Java_main_MainWindow_initJni(
 		if((file=fopen(file_path, "rb")) != NULL)
 		{
 			uchar *bytes = (uchar *) malloc(width*height);
-			fread(bytes, width*height, 1, file);
+			int total_size = width*height;
+			int readed_size = 0;
+			while(readed_size < total_size)
+				readed_size += fread(&bytes[readed_size], 1, total_size, file);
 			fclose(file);
 			all_frames.push_back(bytes);
 		}
@@ -60,13 +64,11 @@ extern "C" JNIEXPORT jint JNICALL Java_main_MainWindow_getFrameIndexJni(JNIEnv *
 
 extern "C" JNIEXPORT void JNICALL Java_main_MainWindow_moveFramesIndexJni(JNIEnv *env, jobject thisObj, jint offset)
 {
-	uint64_t t0 = getUseconds();
 	int size = all_frames.size();
 	if(size != 0)
 		s_frame_index = (s_frame_index + size + offset)%size;
 	create_work_frames(all_frames, s_frame_index, s_diff_frames_range, work_frames);
 	create_base_frame(base_frame, s_width, s_height, work_frames);
-	fprintf(stderr, "time to recreate base take %3.4f secs\n", (getUseconds() - t0)/1000000.0f);
 }
 
 extern "C" JNIEXPORT void JNICALL Java_main_MainWindow_updateTreshJni(JNIEnv *env, jobject thisObj, jint thresh)
@@ -101,7 +103,10 @@ extern "C" JNIEXPORT void JNICALL Java_main_MainWindow_loadIgnoreAreaMask(JNIEnv
 	FILE *file;
 	if((file=fopen(out_path, "rb")) != NULL)
 	{
-		fread(ignore_areas_frame, s_width*s_height, 1, file);
+		int total_size = s_width*s_height;
+		int readed_size = 0;
+		while(readed_size < total_size)
+			readed_size += fread(ignore_areas_frame, 1, total_size, file);
 		fclose(file);
 	}
 	env->ReleaseStringUTFChars(jout_path, out_path);

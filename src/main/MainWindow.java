@@ -96,7 +96,7 @@ public class MainWindow extends JFrame
 			}
 		});
 		// 300 frame for 30fps ~= 10 secs
-		setDiffFramesRangeJni(Math.min(300, all_samples_files.size()));
+		setDiffFramesRangeJni(Math.min(1800, all_samples_files.size()));
 		initJni(all_samples_files.toArray(new String[all_samples_files.size()]), width, height);
 		
 		ignore_areas_file_path = new File(sample_dir, "ignored_area.bin");
@@ -118,13 +118,13 @@ public class MainWindow extends JFrame
 					{
 						moveFramesIndexJni(1);
 						setTitle("frame: " + getFrameIndexJni());
-						MainWindow.this.repaint();
+						draw_panel.repaint();
 					}
 					else if(e.getKeyCode() == KeyEvent.VK_LEFT)
 					{
 						moveFramesIndexJni(-1);
 						setTitle("frame: " + getFrameIndexJni());
-						MainWindow.this.repaint();
+						draw_panel.repaint();
 					}
 				}
 				else if (e.getID() == KeyEvent.KEY_PRESSED) {}
@@ -174,7 +174,7 @@ public class MainWindow extends JFrame
 			public void itemStateChanged(ItemEvent e) 
 			{
 				updateTreshJni(Integer.parseInt((String)e.getItem()));
-				MainWindow.this.draw_panel.repaint();
+				draw_panel.repaint();
 			}
 		});
 		treshholds_combo_box.setSelectedItem("" + getTreshJni());
@@ -260,7 +260,7 @@ public class MainWindow extends JFrame
 	
 	public static void main(String[] args) 
 	{
-		new MainWindow("/home/elazarkin/storage/datasets/diff_project/samples/12", 640, 480).setVisible(true);
+		new MainWindow("/home/elazarkin/storage/datasets/diff_project/samples/7", 640, 480).setVisible(true);
 	}
 
 }

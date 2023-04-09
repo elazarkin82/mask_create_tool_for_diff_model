@@ -10,12 +10,14 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include <math.h>
-#include <string>
-#include <vector>
-
 #include <stdint.h>
 #include <sys/time.h>
+
+#include <string>
+#include <vector>
+#include <thread>
 
 #define MIN(A, B) A > B ? B : A
 #define MAX(A, B) A < B ? B : A
@@ -65,14 +67,16 @@ static const int X_OFFSETS[] = {-1, 0, 1,-1, 1,-1, 0, 1};
 static const int Y_OFFSETS[] = {-1,-1,-1, 0, 0, 1, 1, 1};
 static const int OFFSETS_SIZE = sizeof(X_OFFSETS)/sizeof(int);
 
-
 void create_work_frames(std::vector<uchar*>&all_frames, int frame_index, int diff_frames_range, std::vector<uchar*>&work_frames)
 {
+	uint64_t t0 = getUseconds();
 	int start_index = MAX(0, frame_index - diff_frames_range);
 	int end_index = start_index  + diff_frames_range;
+	fprintf(stderr, "start creating work_frames!\n");
 	work_frames.clear();
 	for(int i = start_index; i < end_index; i++)
 		work_frames.push_back(all_frames[i]);
+	fprintf(stderr, "time to create_work_frames take %3.4f secs\n", (getUseconds() - t0)/1000000.0f);
 }
 
 inline int _calc_best_index(int min_index, int range, int *histograms)
@@ -87,11 +91,11 @@ inline int _calc_best_index(int min_index, int range, int *histograms)
 	return roundf(sum/total_weight);
 }
 
-void create_base_frame(uchar *base_frame, int w, int h, std::vector<uchar*>&work_frames)
+void create_base_frame_thread_fn(int start, int end, uchar *base_frame, int w, int h, std::vector<uchar*>&work_frames)
 {
 	int look_range = 3;
 	int histogram[256];
-	for(int i = 0; i < w*h; i++)
+	for(int i = start; i < end; i++)
 	{
 		int min_value = 255, max_value = 0;
 		memset(histogram, 0, sizeof(histogram));
@@ -137,6 +141,29 @@ void create_base_frame(uchar *base_frame, int w, int h, std::vector<uchar*>&work
 			base_frame[i] = best_index;
 		}
 	}
+}
+
+void create_base_frame(uchar *base_frame, int w, int h, std::vector<uchar*>&work_frames)
+{
+	uint64_t t0 = getUseconds();
+	int num_of_cores = sysconf(_SC_NPROCESSORS_ONLN);
+	int size = w*h;
+	int step = ceilf(size/num_of_cores);
+	std::vector<std::thread> threads;
+	fprintf(stderr, "num of cores = %d\n", num_of_cores);
+	for(int start = 0; start < size; start += step)
+	{
+		int end = MIN(start + step, size);
+		threads.push_back(std::thread(
+			create_base_frame_thread_fn, start, end, base_frame, w, h, std::ref(work_frames)
+		));
+	}
+
+	for(int i = 0; i < threads.size(); i++)
+		if(threads[i].joinable())
+			threads[i].join();
+
+	fprintf(stderr, "time to create_base_frame take %3.4f secs. Uset %d threads!\n", (getUseconds() - t0)/1000000.0f, num_of_cores);
 }
 
 void calculate_simple_diff(uchar *frame, uchar *base_frame, int w, int h, int tresh, uchar *out)
