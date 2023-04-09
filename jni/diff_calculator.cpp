@@ -7,7 +7,7 @@ int s_frame_index = 0;
 std::vector<std::string> all_frames_names;
 std::vector<uchar *> all_frames;
 std::vector<uchar *> work_frames;
-int s_tresh = 8;
+int s_thresh = 8;
 int s_ignore_radius = 26;
 int s_diff_frames_range;
 
@@ -71,14 +71,14 @@ extern "C" JNIEXPORT void JNICALL Java_main_MainWindow_moveFramesIndexJni(JNIEnv
 	create_base_frame(base_frame, s_width, s_height, work_frames);
 }
 
-extern "C" JNIEXPORT void JNICALL Java_main_MainWindow_updateTreshJni(JNIEnv *env, jobject thisObj, jint thresh)
+extern "C" JNIEXPORT void JNICALL Java_main_MainWindow_updateThreshJni(JNIEnv *env, jobject thisObj, jint thresh)
 {
-	s_tresh = thresh;
+	s_thresh = thresh;
 }
 
-extern "C" JNIEXPORT jint JNICALL Java_main_MainWindow_getTreshJni(JNIEnv *env, jobject thisObj)
+extern "C" JNIEXPORT jint JNICALL Java_main_MainWindow_getThreshJni(JNIEnv *env, jobject thisObj)
 {
-	return s_tresh;
+	return s_thresh;
 }
 
 extern "C" JNIEXPORT void JNICALL Java_main_MainWindow_updateIgnoreRadiusJni(JNIEnv *env, jobject thisObj, jint ignore_radius)
@@ -149,7 +149,7 @@ extern "C" JNIEXPORT void JNICALL Java_main_gui_DrawPanel_readDiffFrameBytesJni(
 	uchar *ptr = (uchar *)env->GetByteArrayElements(jframe_bytes, 0);
 	UcharMemoryGuard simple_diff(s_width*s_height);
 
-	calculate_simple_diff(all_frames[s_frame_index], base_frame, s_width, s_height, s_tresh, simple_diff.data());
+	calculate_simple_diff(all_frames[s_frame_index], base_frame, s_width, s_height, s_thresh, simple_diff.data());
 	remove_ingore_areas(ignore_areas_frame, simple_diff.data(), s_width, s_height);
 	remove_bulge_pixels_by_neighbord_size(simple_diff.data(), s_width, s_height, 2);
 	remove_small_parts(simple_diff.data(), s_width, s_height, 100);

@@ -11,8 +11,6 @@ import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.event.KeyEvent;
-import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferByte;
 import java.io.File;
 import java.util.Collections;
 import java.util.Comparator;
@@ -160,15 +158,19 @@ public class MainWindow extends JFrame
 	private void add_command_panel() 
 	{
 		JPanel commands_panel = new JPanel();
-		JComboBox<String> treshholds_combo_box = new JComboBox<String>(create_combo_box_int_options(1, 45, 1));
+		JLabel thresh_title = new JLabel("thesh");
+		JComboBox<String> treshholds_cb = new JComboBox<String>(create_combo_box_int_options(1, 45, 1));
+		JLabel ignore_title = new JLabel("ignore radius");
+		JComboBox<String> ignore_radius_cb = new JComboBox<String>(create_combo_box_int_options(2, 100, 8));
+		JLabel min_blob_size_title = new JLabel("blob size");
+		JComboBox<String> min_blobs_size_cb = new JComboBox<String>(create_combo_box_int_options(100, 4000, 8));
 		JLabel mode_title = new JLabel("mode");
 		JLabel tresh_title = new JLabel("thresh");
-		JLabel ignore_title = new JLabel("ignore radius");
+		
 		final JButton play_button;
 		final JButton mode_button;
-		JComboBox<String> ignore_radius_combo_box = new JComboBox<String>(create_combo_box_int_options(2, 100, 8));;
 		
-		treshholds_combo_box.addItemListener(new ItemListener() 
+		treshholds_cb.addItemListener(new ItemListener() 
 		{
 			@Override
 			public void itemStateChanged(ItemEvent e) 
@@ -177,9 +179,20 @@ public class MainWindow extends JFrame
 				draw_panel.repaint();
 			}
 		});
-		treshholds_combo_box.setSelectedItem("" + getTreshJni());
+		treshholds_cb.setSelectedItem("" + getTreshJni());
 		
-		ignore_radius_combo_box.addItemListener(new ItemListener() 
+		min_blobs_size_cb.addItemListener(new ItemListener() 
+		{
+			@Override
+			public void itemStateChanged(ItemEvent e) 
+			{
+				setMinBlobSizeJni(Integer.parseInt((String)e.getItem()));
+				draw_panel.repaint();
+			}
+		});
+		setMinBlobSizeJni(Integer.parseInt((String)min_blobs_size_cb.getSelectedItem()));
+		
+		ignore_radius_cb.addItemListener(new ItemListener() 
 		{
 			@Override
 			public void itemStateChanged(ItemEvent e) 
@@ -187,7 +200,7 @@ public class MainWindow extends JFrame
 				updateIgnoreRadiusJni(Integer.parseInt((String)e.getItem()));
 			}
 		});
-		ignore_radius_combo_box.setSelectedItem("" + getIgnoreRadiusJni());
+		ignore_radius_cb.setSelectedItem("" + getIgnoreRadiusJni());
 		
 		play_button = new JButton("play");
 		play_button.addActionListener(new ActionListener() 
@@ -229,9 +242,9 @@ public class MainWindow extends JFrame
 		});
 		commands_panel.setLayout(new FlowLayout(FlowLayout.LEFT));
 		commands_panel.add(tresh_title);
-		commands_panel.add(treshholds_combo_box);
+		commands_panel.add(treshholds_cb);
 		commands_panel.add(ignore_title);
-		commands_panel.add(ignore_radius_combo_box);
+		commands_panel.add(ignore_radius_cb);
 		commands_panel.add(mode_title);
 		commands_panel.add(mode_button);
 		commands_panel.add(play_button);
@@ -249,9 +262,10 @@ public class MainWindow extends JFrame
 	private native void initJni(String[] all_frames_pathes, int w, int h);
 	private native int getFrameIndexJni();
 	private native void moveFramesIndexJni(int i);
-	private native void updateTreshJni(int parseInt);
-	private native int getTreshJni();
-	private native void updateIgnoreRadiusJni(int parseInt);
+	private native void updateThreshJni(int thresh);
+	private native int getThreshJni();
+	private native void updateIgnoreRadiusJni(int ignore_radius);
+	private native void setMinBlobSizeJni(int min_size);
 	private native int getIgnoreRadiusJni();
 	private native void getIgnoreFrame(byte [] pixels);
 	private native void setDiffFramesRangeJni(int frames_size);

@@ -166,10 +166,10 @@ void create_base_frame(uchar *base_frame, int w, int h, std::vector<uchar*>&work
 	fprintf(stderr, "time to create_base_frame take %3.4f secs. Uset %d threads!\n", (getUseconds() - t0)/1000000.0f, num_of_cores);
 }
 
-void calculate_simple_diff(uchar *frame, uchar *base_frame, int w, int h, int tresh, uchar *out)
+void calculate_simple_diff(uchar *frame, uchar *base_frame, int w, int h, int thresh, uchar *out)
 {
 	for(int i = 0; i < w*h; i++)
-		out[i] = abs((int)base_frame[i] - (int)frame[i]) > tresh ? 255 : 0;
+		out[i] = abs((int)base_frame[i] - (int)frame[i]) > thresh ? 255 : 0;
 }
 
 void set_ignore_area_frame_values_in_radius(uchar *ignore_areas_frame, int jx, int jy, int w, int h, int ignore_radius, uchar value)
@@ -221,10 +221,10 @@ void inline _find_blob(uchar *img, int w, int h, int x, int y, std::vector<Pixel
 {
 	pixels.push_back(Pixel(x, y));
 	img[pixels[0].y*w + pixels[0].x] = 0;
-	for(int i = 0; i < pixels.size(); i++)
+	for(int i = 0; i < pixels.size(); ++i)
 	{
 		Pixel &curr_pixel = pixels[i];
-		for(int i = 0; i < OFFSETS_SIZE; i++)
+		for(int i = 0; i < OFFSETS_SIZE; ++i)
 		{
 			Pixel next_pixel(curr_pixel.x + X_OFFSETS[i], curr_pixel.y + Y_OFFSETS[i]);
 			// we dosn't fear about crossing of the border cause the img have black rectangle on the border edge ??
@@ -249,7 +249,10 @@ void remove_small_parts(uchar *diff_frame, int w, int h, int min_part_size)
 		for(int x = 0; x < w; x++)
 		{
 			if(x == 0 || x == w-1 || y == 0 || y == h-1)
+			{
 				helpful_mask[y*w+x] = 0;
+				diff_frame[y*w+x] = 0;
+			}
 			else if(helpful_mask[y*w + x] == 255)
 			{
 				pixel_container.clear();
