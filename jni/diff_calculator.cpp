@@ -93,6 +93,30 @@ extern "C" JNIEXPORT void JNICALL Java_main_MainWindow_setDiffFramesRangeJni(JNI
 	s_diff_frames_range = diff_frames_range;
 }
 
+extern "C" JNIEXPORT void JNICALL Java_main_MainWindow_loadIgnoreAreaMask(JNIEnv *env, jobject thisObj, jstring jout_path)
+{
+	const char *out_path = env->GetStringUTFChars(jout_path, 0);
+	FILE *file;
+	if((file=fopen(out_path, "rb")) != NULL)
+	{
+		fread(ignore_areas_frame, s_width*s_height, 1, file);
+		fclose(file);
+	}
+	env->ReleaseStringUTFChars(jout_path, out_path);
+}
+
+extern "C" JNIEXPORT void JNICALL Java_main_MainWindow_saveIgnoreAreasMask(JNIEnv *env, jobject thisObj, jstring jout_path)
+{
+	const char *out_path = env->GetStringUTFChars(jout_path, 0);
+	FILE *file;
+	if((file=fopen(out_path, "wb")) != NULL)
+	{
+		fwrite(ignore_areas_frame, s_width*s_height, 1, file);
+		fclose(file);
+	}
+	env->ReleaseStringUTFChars(jout_path, out_path);
+}
+
 extern "C" JNIEXPORT void JNICALL Java_main_gui_DrawPanel_readBaseFrameBytesJni(JNIEnv *env, jobject thisObj, jbyteArray jframe_bytes)
 {
 	uchar *ptr = (uchar *)env->GetByteArrayElements(jframe_bytes, 0);
@@ -114,6 +138,7 @@ extern "C" JNIEXPORT void JNICALL Java_main_gui_DrawPanel_readFrameBytesJni(JNIE
 
 extern "C" JNIEXPORT void JNICALL Java_main_gui_DrawPanel_readDiffFrameBytesJni(JNIEnv *env, jobject thisObj, jbyteArray jframe_bytes)
 {
+	uint64_t t0 = getUseconds();
 	uchar *ptr = (uchar *)env->GetByteArrayElements(jframe_bytes, 0);
 	UcharMemoryGuard simple_diff(s_width*s_height);
 
@@ -123,6 +148,7 @@ extern "C" JNIEXPORT void JNICALL Java_main_gui_DrawPanel_readDiffFrameBytesJni(
 	remove_small_parts(simple_diff.data(), s_width, s_height, 100);
 	memcpy(ptr, simple_diff.data(), s_width*s_height);
 	env->ReleaseByteArrayElements(jframe_bytes, (jbyte*)ptr, 0);
+	fprintf(stderr, "time calc diff take %3.4f secs\n", (getUseconds() - t0)/1000000.0f);
 }
 
 extern "C" JNIEXPORT void JNICALL Java_main_gui_DrawPanel_addIgnoreAreaJni(JNIEnv *env, jobject thisObj, jint jx, jint jy)

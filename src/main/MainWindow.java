@@ -11,6 +11,8 @@ import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.event.KeyEvent;
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferByte;
 import java.io.File;
 import java.util.Collections;
 import java.util.Comparator;
@@ -36,6 +38,7 @@ public class MainWindow extends JFrame
 	
 	private int width, height;
 	private DrawPanel draw_panel;
+	private File ignore_areas_file_path;
 	
 	
 	public MainWindow(String samples_dir_path, int width, int height) 
@@ -59,11 +62,20 @@ public class MainWindow extends JFrame
 	private void init_variables(String samples_dir_path) 
 	{
 		File sample_dir = new File(samples_dir_path);
-		File ignore_areas_file_path;
 		Vector<String> all_samples_files = new Vector<String>();
 		
 		for(File f:sample_dir.listFiles())
-			if(f.getName() != "ignored_area.bin" && f.getName() != "base_frame.bin" && f.getName().endsWith(".bin"))
+			if(
+				!f.getName().startsWith("ignored_area.") 
+				&& 
+				!f.getName().startsWith("base_frame.") 
+				&&
+				!f.getName().endsWith("_mask.png")
+				&&
+				!f.getName().endsWith("_mask.bin")
+				&&
+				f.getName().endsWith(".bin")
+			)
 				all_samples_files.add(f.getAbsolutePath());
 		
 		Collections.sort(all_samples_files, new Comparator<String>() 
@@ -86,7 +98,7 @@ public class MainWindow extends JFrame
 		
 		ignore_areas_file_path = new File(sample_dir, "ignored_area.bin");
 		if(ignore_areas_file_path.exists())
-			loadIgnoreArea(ignore_areas_file_path.getAbsolutePath());
+			loadIgnoreAreaMask(ignore_areas_file_path.getAbsolutePath());
 	}
 
 	private void add_key_listener() 
@@ -129,7 +141,7 @@ public class MainWindow extends JFrame
 			@Override
 			public void actionPerformed(ActionEvent e) 
 			{
-				// TODO
+				saveIgnoreAreasMask(ignore_areas_file_path.getAbsolutePath());
 			}
 		});
 		exit_menu_item.addActionListener(new ActionListener() 
@@ -198,14 +210,11 @@ public class MainWindow extends JFrame
 	{
 		String ret[] = new String[(end - start)/step + 1];
 		for(int i = start; i <= end; i += step)
-		{
 			ret[(i-start)/step] = "" + i;
-		}
 		return ret;
 	}
 	
 	private native void initJni(String[] all_frames_pathes, int w, int h);
-	private native void loadIgnoreArea(String file_path);
 	private native int getFrameIndexJni();
 	private native void updateTreshJni(int parseInt);
 	private native int getTreshJni();
@@ -214,6 +223,8 @@ public class MainWindow extends JFrame
 	private native void moveFramesIndexJni(int i);
 	private native void getIgnoreFrame(byte [] pixels);
 	private native void setDiffFramesRangeJni(int frames_size);
+	private native void loadIgnoreAreaMask(String file_path);
+	private native void saveIgnoreAreasMask(String out_path);
 	
 	public static void main(String[] args) 
 	{

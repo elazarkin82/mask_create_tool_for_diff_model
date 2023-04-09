@@ -14,6 +14,9 @@
 #include <string>
 #include <vector>
 
+#include <stdint.h>
+#include <sys/time.h>
+
 #define MIN(A, B) A > B ? B : A
 #define MAX(A, B) A < B ? B : A
 #define POW2(A) (A)*(A)
@@ -25,6 +28,13 @@ struct Pixel
 	Pixel(int _x, int _y): x(_x), y(_y){}
 	int x, y;
 };
+
+inline uint64_t getUseconds()
+{
+	struct timeval tp;
+	gettimeofday(&tp, NULL);
+	return tp.tv_sec * 1000000 + tp.tv_usec;
+}
 
 class UcharMemoryGuard
 {
@@ -138,11 +148,10 @@ void calculate_simple_diff(uchar *frame, uchar *base_frame, int w, int h, int tr
 
 void set_ignore_area_frame_values_in_radius(uchar *ignore_areas_frame, int jx, int jy, int w, int h, int ignore_radius, uchar value)
 {
-	// Important leave pixel black border for next algorithms
-	int min_x = MAX(1, jx - ignore_radius);
-	int max_x = MIN(w-1, jx + ignore_radius);
-	int min_y = MAX(1, jy - ignore_radius);
-	int max_y = MIN(h-1, jy + ignore_radius);
+	int min_x = MAX(0, jx - ignore_radius);
+	int max_x = MIN(w, jx + ignore_radius);
+	int min_y = MAX(0, jy - ignore_radius);
+	int max_y = MIN(h, jy + ignore_radius);
 
 	for(int y = min_y; y < max_y; y++)
 		for(int x = min_x; x< max_x; x++)
@@ -210,10 +219,12 @@ void remove_small_parts(uchar *diff_frame, int w, int h, int min_part_size)
 	std::vector<Pixel> pixel_container;
 	UcharMemoryGuard helpful_mask(diff_frame, w*h);
 
-	for(int y = 1; y < h -1; y++)
-		for(int x = 1; x < w - 1; x++)
+	for(int y = 0; y < h; y++)
+		for(int x = 0; x < w; x++)
 		{
-			if(helpful_mask[y*w + x] == 255)
+			if(x == 0 || x == w-1 || y == 0 || y == h-1)
+				helpful_mask[y*w+x] = 0;
+			else if(helpful_mask[y*w + x] == 255)
 			{
 				pixel_container.clear();
 				_find_blob(helpful_mask.data(), w, h, x, y, pixel_container);
